@@ -32,16 +32,8 @@ def _get_effective_user_group_id() -> int:
     return os.getegid()
 
 
-def _get_effective_user_group() -> str:
-    return grp.getgrgid(_get_effective_user_group_id()).gr_name
-
-
 def _get_user_owner(file_path: str) -> str:
     return pwd.getpwuid(os.stat(file_path).st_uid).pw_name
-
-
-def _get_user_group(file_path: str | None = None) -> str:
-    return grp.getgrgid(os.stat(file_path).st_gid if file_path is not None else _get_user_group_id()).gr_name
 
 
 def _get_user_group_id() -> int:
