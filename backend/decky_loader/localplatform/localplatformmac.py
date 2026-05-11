@@ -4,7 +4,6 @@ from getpass import getuser
 import logging
 import os
 import pwd
-import grp
 import sys
 
 from ..enums import UserType
