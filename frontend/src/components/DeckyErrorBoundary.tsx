@@ -37,6 +37,7 @@ const DeckyErrorBoundary: FunctionComponent<DeckyErrorBoundaryProps> = ({ error,
   const [errorSource, wasCausedByPlugin, shouldReportToValve] = getLikelyErrorSourceFromValveReactError(error);
   useEffect(() => {
     if (!shouldReportToValve) DeckyPluginLoader.errorBoundaryHook.temporarilyDisableReporting();
+    if (wasCausedByPlugin) void DeckyPluginLoader.quarantineCrashedPlugins([errorSource], error.error, error.info);
     DeckyPluginLoader.updateVersion().then(setVersionInfo);
   }, []);
 

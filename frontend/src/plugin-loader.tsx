@@ -1,17 +1,6 @@
 import { ToastNotification } from '@decky/api';
-import {
-  EUIMode,
-  ModalRoot,
-  Navigation,
-  PanelSection,
-  PanelSectionRow,
-  QuickAccessTab,
-  findSP,
-  quickAccessMenuClasses,
-  showModal,
-  sleep,
-} from '@decky/ui';
-import { FC, lazy } from 'react';
+import { EUIMode, ModalRoot, Navigation, QuickAccessTab, findSP, showModal, sleep } from '@decky/ui';
+import { lazy } from 'react';
 import { FaDownload, FaExclamationCircle, FaPlug } from 'react-icons/fa';
 
 import DeckyIcon from './components/DeckyIcon';
@@ -31,7 +20,7 @@ import { FrozenPluginService } from './frozen-plugins-service';
 import { HiddenPluginsService } from './hidden-plugins-service';
 import Logger from './logger';
 import { NotificationService } from './notification-service';
-import { DisabledPlugin, InstallType, Plugin, PluginLoadType } from './plugin';
+import { DisabledPlugin, InstallType, Plugin, PluginLoadType, disablePlugin } from './plugin';
 import RouterHook from './router-hook';
 import { deinitSteamFixes, initSteamFixes } from './steamfixes';
 import { checkForPluginUpdates } from './store';
@@ -85,6 +74,7 @@ class PluginLoader extends Logger {
 
   private loaderUpdateToast?: ToastNotification;
   private pluginUpdateToast?: ToastNotification;
+  private pluginCrashToastLocks = new Set<string>();
 
   constructor() {
     super(PluginLoader.name);
@@ -93,6 +83,7 @@ class PluginLoader extends Logger {
     DeckyBackend.addEventListener('loader/import_plugin', this.importPlugin.bind(this));
     DeckyBackend.addEventListener('loader/unload_plugin', this.unloadPlugin.bind(this));
     DeckyBackend.addEventListener('loader/disable_plugin', this.doDisablePlugin.bind(this));
+    DeckyBackend.addEventListener('loader/plugin_crash_detected', this.onBackendPluginCrash.bind(this));
     DeckyBackend.addEventListener('loader/add_plugin_install_prompt', this.addPluginInstallPrompt.bind(this));
     DeckyBackend.addEventListener(
       'loader/add_multiple_plugins_install_prompt',
@@ -287,6 +278,51 @@ class PluginLoader extends Logger {
     }
   }
 
+  public async quarantineCrashedPlugins(names: string[], error?: unknown, info?: unknown) {
+    const plugins = [...new Set(names.filter(Boolean))];
+    if (plugins.length === 0) return;
+
+    const toastKey = plugins.sort().join('\0');
+    if (this.pluginCrashToastLocks.has(toastKey)) return;
+    this.pluginCrashToastLocks.add(toastKey);
+    setTimeout(() => this.pluginCrashToastLocks.delete(toastKey), 30000);
+
+    this.error('Disabling plugin after crash', { plugins, error, info });
+
+    for (const name of plugins) {
+      try {
+        await disablePlugin(name);
+      } catch (disableError) {
+        this.error(`Failed to disable crashed plugin ${name}`, disableError);
+      }
+    }
+
+    const disabledPlugins = this.deckyState.publicState().disabledPlugins;
+    const disabledPluginNames = new Set(disabledPlugins.map((plugin) => plugin.name));
+    const newlyDisabledPlugins = plugins
+      .filter((name) => !disabledPluginNames.has(name))
+      .map((name) => ({ name, version: this.plugins.find((plugin) => plugin.name === name)?.version }));
+    if (newlyDisabledPlugins.length > 0) {
+      this.deckyState.setDisabledPlugins([...disabledPlugins, ...newlyDisabledPlugins]);
+    }
+
+    this.toaster.toast({
+      title: 'A problem has happened with one of your plugins!',
+      body: (
+        <div>
+          <div>Plugins causing crash:</div>
+          <div>{plugins.join(', ')}</div>
+        </div>
+      ),
+      logo: <DeckyIcon />,
+      icon: <FaExclamationCircle />,
+    });
+  }
+
+  public async onBackendPluginCrash(payload: { plugins?: string[]; reason?: string }) {
+    await this.quarantineCrashedPlugins(payload.plugins ?? [], payload.reason);
+  }
+
   public addPluginInstallPrompt(
     artifact: string,
     version: string,
@@ -415,7 +451,8 @@ class PluginLoader extends Logger {
       this.unloadPlugin(name, true);
       const startTime = performance.now();
 
-      await this.importReactPlugin(name, version, loadType, timeoutMS);
+      const loaded = await this.importReactPlugin(name, version, loadType, timeoutMS);
+      if (!loaded) return;
       const endTime = performance.now();
 
       this.deckyState.setDisabledPlugins(this.deckyState.publicState().disabledPlugins.filter((d) => d.name !== name));
@@ -439,12 +476,13 @@ class PluginLoader extends Logger {
     version?: string,
     loadType: PluginLoadType = PluginLoadType.ESMODULE_V1,
     timeoutMS?: number,
-  ) {
+  ): Promise<boolean> {
     let spExists = this.checkForSP();
     const timeoutException = new Error(
       `${name} failed to load within ${timeoutMS ? `${timeoutMS / 1000} second` : ''} time limit`,
     );
     let timeout: number | undefined;
+    let loaded = false;
 
     try {
       switch (loadType) {
@@ -468,6 +506,7 @@ class PluginLoader extends Logger {
             version: version,
             loadType,
           });
+          loaded = true;
           break;
 
         case PluginLoadType.LEGACY_EVAL_IIFE:
@@ -502,6 +541,7 @@ class PluginLoader extends Logger {
               version: version,
               loadType,
             });
+            loaded = true;
           } else throw new Error(`${name} frontend_bundle not OK`);
           break;
 
@@ -509,50 +549,8 @@ class PluginLoader extends Logger {
           throw new Error(`${name} has no defined loadType.`);
       }
     } catch (e) {
-      if (e === timeoutException) throw timeoutException;
-
       this.error('Error loading plugin ' + name, e);
-      const TheError: FC<{}> = () => (
-        <PanelSection>
-          <PanelSectionRow>
-            <div className={quickAccessMenuClasses.FriendsTitle} style={{ display: 'flex', justifyContent: 'center' }}>
-              <TranslationHelper transClass={TranslationClass.PLUGIN_LOADER} transText="error" />
-            </div>
-          </PanelSectionRow>
-          <PanelSectionRow>
-            <pre style={{ overflowX: 'scroll' }}>
-              <code>{e instanceof Error ? '' + e.stack : JSON.stringify(e)}</code>
-            </pre>
-          </PanelSectionRow>
-          <PanelSectionRow>
-            <div className={quickAccessMenuClasses.Text}>
-              <TranslationHelper
-                transClass={TranslationClass.PLUGIN_LOADER}
-                transText="plugin_error_uninstall"
-                i18nArgs={{ name: name }}
-              />
-            </div>
-          </PanelSectionRow>
-        </PanelSection>
-      );
-      this.plugins.push({
-        name: name,
-        version: version,
-        content: <TheError />,
-        icon: <FaExclamationCircle />,
-        loadType,
-      });
-      this.toaster.toast({
-        title: (
-          <TranslationHelper
-            transClass={TranslationClass.PLUGIN_LOADER}
-            transText="plugin_load_error.toast"
-            i18nArgs={{ name: name }}
-          />
-        ),
-        body: '' + e,
-        icon: <FaExclamationCircle />,
-      });
+      await this.quarantineCrashedPlugins([name], e);
     } finally {
       if (timeout !== undefined) clearTimeout(timeout);
     }
@@ -562,6 +560,8 @@ class PluginLoader extends Logger {
       this.error('SP died after loading plugin. Restarting webhelper.');
       await this.restartWebhelper();
     }
+
+    return loaded;
   }
 
   async callServerMethod(methodName: string, args = {}) {

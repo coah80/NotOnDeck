@@ -3,8 +3,8 @@ from os import path, environ
 from importlib.util import module_from_spec, spec_from_file_location
 from json import dumps, loads
 from logging import getLogger
-from traceback import format_exc
-from asyncio import (ensure_future, get_event_loop, new_event_loop,
+from traceback import format_exc, format_exception
+from asyncio import (ensure_future, get_event_loop, new_event_loop, sleep,
                      set_event_loop)
 from signal import SIGINT, SIGTERM
 from setproctitle import setproctitle, setthreadtitle
@@ -45,6 +45,23 @@ class SandboxedPlugin:
 
         self.log = getLogger("sandboxed_plugin")
 
+    async def _report_crash_and_shutdown(self, reason: str):
+        try:
+            for _ in range(50):
+                if self._socket.server_writer is not None:
+                    break
+                await sleep(0.1)
+
+            await self._socket.write_single_line_server(dumps({
+                "type": SocketMessageType.EVENT,
+                "event": "decky/plugin_crashed",
+                "args": [reason]
+            }))
+        except:
+            self.log.error("Failed to report crash for " + self.name + "!\n" + format_exc())
+        finally:
+            get_event_loop().call_soon_threadsafe(get_event_loop().stop)
+
     def initialize(self, socket: LocalSocket):
         self._socket = socket
 
@@ -54,6 +71,19 @@ class SandboxedPlugin:
 
             loop = new_event_loop()
             set_event_loop(loop)
+
+            def handle_loop_exception(_, context: Any):
+                exception = context.get("exception")
+                message = context.get("message", "Unhandled plugin exception")
+                if exception:
+                    reason = "".join(format_exception(type(exception), exception, exception.__traceback__))
+                else:
+                    reason = str(message)
+                self.log.error("Unhandled exception in " + self.name + "!\n" + reason)
+                ensure_future(self._report_crash_and_shutdown(reason))
+
+            loop.set_exception_handler(handle_loop_exception)
+
             # When running Decky manually in a terminal, ctrl-c will trigger this, so we have to handle it properly
             if ON_LINUX:
                 loop.add_signal_handler(SIGINT, lambda: ensure_future(self.shutdown()))
@@ -113,6 +143,8 @@ class SandboxedPlugin:
             else:
                 self.Plugin = module.Plugin
 
+            get_event_loop().run_until_complete(socket.setup_server(self.on_new_message))
+
             if hasattr(self.Plugin, "_migration"):
                 if self.api_version > 0:
                     get_event_loop().run_until_complete(self.Plugin._migration())
@@ -123,7 +155,6 @@ class SandboxedPlugin:
                     get_event_loop().create_task(self.Plugin._main())
                 else:
                     get_event_loop().create_task(self.Plugin._main(self.Plugin))
-            get_event_loop().create_task(socket.setup_server(self.on_new_message))
         except:
             self.log.error("Failed to start " + self.name + "!\n" + format_exc())
             sys.exit(0)

@@ -158,9 +158,29 @@ class Loader:
         with open(path.join(self.plugin_path, plugin.plugin_directory, "dist/index.js"), "r", encoding="utf-8") as bundle:
             return web.Response(text=bundle.read(), content_type="application/javascript")
 
+    async def quarantine_crashed_plugin(self, plugin: PluginWrapper, reason: str):
+        if plugin.disabled:
+            return
+
+        self.logger.error(f"Plugin {plugin.name} crashed; disabling it.\n{reason}")
+        plugin.disabled = True
+
+        if hasattr(self.context, "utilities"):
+            disabled_plugins: List[str] = await self.context.utilities.get_setting("disabled_plugins", [])
+            if plugin.name not in disabled_plugins:
+                disabled_plugins.append(plugin.name)
+                await self.context.utilities.set_setting("disabled_plugins", disabled_plugins)
+
+        await plugin.stop()
+        await self.ws.emit("loader/disable_plugin", plugin.name)
+        await self.ws.emit("loader/plugin_crash_detected", {"plugins": [plugin.name], "reason": reason})
+
     async def import_plugin(self, file: str, plugin_directory: str, refresh: bool | None = False, batch: bool | None = False):
         try:
             async def plugin_emitted_event(event: str, args: Any):
+                if event == "decky/plugin_crashed":
+                    await self.quarantine_crashed_plugin(plugin, str(args[0]) if args else "")
+                    return
                 self.logger.debug(f"PLUGIN EMITTED EVENT: {event} with args {args}")
                 await self.ws.emit(f"loader/plugin_event", {"plugin": plugin.name, "event": event, "args": args})
 

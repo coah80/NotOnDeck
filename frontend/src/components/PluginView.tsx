@@ -1,10 +1,11 @@
-import { ButtonItem, ErrorBoundary, Focusable, PanelSection, PanelSectionRow } from '@decky/ui';
+import { ButtonItem, Focusable, PanelSection, PanelSectionRow } from '@decky/ui';
 import { FC, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { FaBan, FaEyeSlash } from 'react-icons/fa';
 
 import { useDeckyState } from './DeckyState';
 import NotificationBadge from './NotificationBadge';
+import PluginCrashBoundary from './PluginCrashBoundary';
 import { useQuickAccessVisible } from './QuickAccessVisibleState';
 import TitleView from './TitleView';
 
@@ -38,7 +39,9 @@ const PluginView: FC = () => {
       <Focusable onCancelButton={closeActivePlugin}>
         <TitleView />
         <div style={{ height: '100%', paddingTop: '16px' }}>
-          <ErrorBoundary>{(visible || activePlugin.alwaysRender) && activePlugin.content}</ErrorBoundary>
+          <PluginCrashBoundary pluginName={activePlugin.name}>
+            {(visible || activePlugin.alwaysRender) && activePlugin.content}
+          </PluginCrashBoundary>
         </div>
       </Focusable>
     );
@@ -53,15 +56,17 @@ const PluginView: FC = () => {
       >
         <PanelSection>
           {pluginList.map(({ name, icon }) => (
-            <PanelSectionRow key={name}>
-              <ButtonItem layout="below" onClick={() => setActivePlugin(name)}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                  {icon}
-                  <div>{name}</div>
-                  <NotificationBadge show={updates?.has(name)} style={{ top: '-5px', right: '-5px' }} />
-                </div>
-              </ButtonItem>
-            </PanelSectionRow>
+            <PluginCrashBoundary key={name} pluginName={name}>
+              <PanelSectionRow>
+                <ButtonItem layout="below" onClick={() => setActivePlugin(name)}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    {icon}
+                    <div>{name}</div>
+                    <NotificationBadge show={updates?.has(name)} style={{ top: '-5px', right: '-5px' }} />
+                  </div>
+                </ButtonItem>
+              </PanelSectionRow>
+            </PluginCrashBoundary>
           ))}
           <div
             style={{

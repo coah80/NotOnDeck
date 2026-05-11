@@ -5,6 +5,7 @@ import { BsGearFill } from 'react-icons/bs';
 import { FaArrowLeft, FaStore } from 'react-icons/fa';
 
 import { useDeckyState } from './DeckyState';
+import PluginCrashBoundary from './PluginCrashBoundary';
 
 const titleStyles: CSSProperties = {
   display: 'flex',
@@ -57,7 +58,11 @@ const TitleView: FC = () => {
       >
         <FaArrowLeft style={{ marginTop: '-4px', display: 'block' }} />
       </DialogButton>
-      {activePlugin?.titleView || <div style={{ flex: 0.9 }}>{activePlugin.name}</div>}
+      {activePlugin?.titleView ? (
+        <PluginCrashBoundary pluginName={activePlugin.name}>{activePlugin.titleView}</PluginCrashBoundary>
+      ) : (
+        <div style={{ flex: 0.9 }}>{activePlugin.name}</div>
+      )}
     </Focusable>
   );
 };
