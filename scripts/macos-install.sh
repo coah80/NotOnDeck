@@ -148,15 +148,15 @@ status() {
   fi
 
   if pgrep -f "${BIN_DIR}/PluginLoader" >/dev/null; then
-    printf 'Decky loader: running\n'
+    printf 'NotOnDeck loader: running\n'
   else
-    printf 'Decky loader: not running\n'
+    printf 'NotOnDeck loader: not running\n'
   fi
 
   if curl -fsS http://127.0.0.1:1337/auth/token >/dev/null; then
-    printf 'Decky backend: reachable\n'
+    printf 'NotOnDeck backend: reachable\n'
   else
-    printf 'Decky backend: not reachable\n'
+    printf 'NotOnDeck backend: not reachable\n'
   fi
 
   if curl -fsS http://127.0.0.1:8080/json >/dev/null; then

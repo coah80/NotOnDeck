@@ -1,12 +1,12 @@
-# macOS Development
+# NotOnDeck macOS Development
 
-Decky can run on macOS as a local development target. This is still experimental:
-SteamOS-specific plugins may assume systemd, Gamescope, Linux paths, root access,
-or Steam Deck hardware.
+NotOnDeck can run on macOS as a local development target. This is still
+experimental: some Decky-compatible plugins may assume systemd, Gamescope, Linux
+paths, root access, or Steam Deck hardware.
 
 ## Layout
 
-By default, the macOS backend stores Decky data under:
+By default, the macOS backend stores NotOnDeck data under:
 
 ```text
 ~/Library/Application Support/decky-loader/homebrew
@@ -37,7 +37,7 @@ The expected debugger endpoint is:
 http://localhost:8080/json
 ```
 
-Start the Decky backend:
+Start the NotOnDeck backend:
 
 ```sh
 ./scripts/macos-dev.sh run-loader

@@ -85,9 +85,9 @@ doctor() {
   fi
 
   if curl -fsS http://localhost:1337/auth/token >/dev/null; then
-    printf 'Decky backend: reachable\n'
+    printf 'NotOnDeck backend: reachable\n'
   else
-    printf 'Decky backend: not reachable on http://localhost:1337/auth/token\n'
+    printf 'NotOnDeck backend: not reachable on http://localhost:1337/auth/token\n'
   fi
 }
 
