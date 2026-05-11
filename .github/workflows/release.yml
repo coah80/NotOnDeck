@@ -122,19 +122,29 @@ jobs:
         message: Pre-release ${{ steps.ready_tag.outputs.tag_name }}
 
   build:
-    name: Build tagged artifact
+    name: Build tagged Linux artifact
     uses: ./.github/workflows/build.yml
+    needs: [create_tag]
+
+  build-macos:
+    name: Build tagged macOS artifact
+    uses: ./.github/workflows/build-macos.yml
     needs: [create_tag]
 
   release:
     name: Release tagged artifact
     runs-on: ubuntu-22.04
-    needs: [create_tag, build]
+    needs: [create_tag, build, build-macos]
     steps:
       - name: Fetch package artifact ⬇️
         uses: actions/download-artifact@v4
         with:
           name: PluginLoader
+      - name: Fetch macOS package artifact ⬇️
+        uses: actions/download-artifact@v4
+        with:
+          name: PluginLoader macOS
+          path: macos
 
       - name: Pre-release 📦
         if: github.event.inputs.release == 'prerelease'
@@ -142,7 +152,9 @@ jobs:
         with:
           name: Prerelease ${{ needs.create_tag.outputs.tag_name }}
           tag_name: ${{ needs.create_tag.outputs.tag_name }}
-          files: ./PluginLoader
+          files: |
+            ./PluginLoader
+            ./macos/PluginLoader-macos
           prerelease: true
           generate_release_notes: true
       - name: Release 📦
@@ -151,6 +163,8 @@ jobs:
         with:
           name: Release ${{ needs.create_tag.outputs.tag_name }}
           tag_name: ${{ needs.create_tag.outputs.tag_name }}
-          files: ./PluginLoader
+          files: |
+            ./PluginLoader
+            ./macos/PluginLoader-macos
           prerelease: false
           generate_release_notes: true

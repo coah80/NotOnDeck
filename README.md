@@ -1,22 +1,33 @@
 <h1 align="center">
   <a name="logo" href="https://deckbrew.xyz/"><img src="https://deckbrew.xyz/static/icon-45ca1f5aea376a9ad37e92db906f283e.png" alt="Deckbrew logo" width="200"></a>
   <br>
-  Decky Loader
+  NotOnDeck
   <br>
-  <a name="download button" href="https://github.com/SteamDeckHomebrew/decky-installer/releases/latest/download/decky_installer.desktop"><img src="./docs/images/download_button.svg"  alt="Download decky" width="150px" style="padding-top: 15px;"></a>
 </h1>
 
 <p align="center">
-  <a href="https://github.com/SteamDeckHomebrew/decky-loader/releases"><img src="https://img.shields.io/github/downloads/SteamDeckHomebrew/decky-loader/total" /></a>
-  <a href="https://github.com/SteamDeckHomebrew/decky-loader/stargazers"><img src="https://img.shields.io/github/stars/SteamDeckHomebrew/decky-loader" /></a>
-  <a href="https://github.com/SteamDeckHomebrew/decky-loader/commits/main"><img src="https://img.shields.io/github/last-commit/SteamDeckHomebrew/decky-loader.svg" /></a>
-  <a href="https://weblate.werwolv.net/engage/decky/"><img src="https://weblate.werwolv.net/widgets/decky/-/decky/svg-badge.svg" alt="Translation status" /></a>
-  <a href="https://github.com/SteamDeckHomebrew/decky-loader/blob/main/LICENSE"><img src="https://img.shields.io/github/license/SteamDeckHomebrew/decky-loader" /></a>
-  <a href="https://deckbrew.xyz/discord"><img src="https://img.shields.io/discord/960281551428522045?color=%235865F2&label=discord" /></a>
+  Desktop Steam plugin loader forked from <a href="https://github.com/SteamDeckHomebrew/decky-loader">SteamDeckHomebrew/decky-loader</a>.
   <br>
+  macOS works today; Windows support is the next target.
   <br>
 <!--  <img src="https://media.discordapp.net/attachments/966017112244125756/1012466063893610506/main.jpg" alt="Decky screenshot" width="80%">-->
 </p>
+
+## Fork Notice
+
+NotOnDeck is a desktop-focused fork of [Decky Loader](https://github.com/SteamDeckHomebrew/decky-loader), created to bring the Decky plugin loader workflow to macOS and Windows desktop Steam clients.
+
+All original Decky Loader code, license terms, project history, and upstream credits remain from SteamDeckHomebrew. This fork exists because desktop Steam needs different platform glue around paths, startup, updater assets, and CEF debugging.
+
+## Desktop Status
+
+- macOS: working local install with LaunchAgent autostart and Steam CEF injection.
+- Windows: planned; existing Windows support in Decky Loader and community forks should make this mostly platform/install work.
+- SteamOS/Linux: use upstream Decky Loader unless you specifically want this fork.
+
+## macOS Install
+
+The macOS development and local install flow lives in [docs/macos.md](docs/macos.md).
 
 ## 🩵 Backers and Sponsors
 
@@ -102,6 +113,7 @@ There is no complete plugin development documentation yet. However a good starti
 ### 🤝 Contributing
 
 Please consult [the wiki page regarding development](https://wiki.deckbrew.xyz/en/loader-dev/development) for more information on installing development versions of Decky Loader. You can also install the Steam Deck UI on a Windows or Linux computer for testing by following [this YouTube guide](https://youtu.be/1IAbZte8e7E?t=112).
+Experimental macOS development notes are in [docs/macos.md](docs/macos.md).
 
 1. Clone the repository using the latest commit to main before starting your PR.
 1. In your clone of the repository, run these commands.

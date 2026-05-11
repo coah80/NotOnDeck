@@ -4,7 +4,7 @@ from asyncio import sleep
 from logging import getLogger
 from typing import Any, Callable, List, TypedDict, Dict
 
-from aiohttp import ClientSession
+from aiohttp import ClientSession, ClientTimeout
 from aiohttp.client_exceptions import ClientConnectorError, ClientOSError
 from asyncio.exceptions import TimeoutError
 import uuid
@@ -374,7 +374,7 @@ async def get_tabs() -> List[Tab]:
     while True:
         try:
             async with ClientSession() as web:
-                res = await web.get(f"{BASE_ADDRESS}/json", timeout=3)
+                res = await web.get(f"{BASE_ADDRESS}/json", timeout=ClientTimeout(total=3))
         except ClientConnectorError:
             if not na:
                 logger.debug("Steam isn't available yet. Wait for a moment...")
@@ -410,7 +410,7 @@ async def get_tab_lambda(test: Callable[[Tab], bool]) -> Tab:
         raise ValueError(f"Tab not found by lambda")
     return tab
 
-SHARED_CTX_NAMES = ["SharedJSContext", "Steam Shared Context presented by Valve™", "Steam", "SP"]
+SHARED_CTX_NAMES = ["SharedJSContext", "Steam Shared Context presented by Valve™", "Steam", "SP", "Steam Big Picture Mode"]
 CLOSEABLE_URLS = ["about:blank", "data:text/html,%3Cbody%3E%3C%2Fbody%3E"] # Closing anything other than these *really* likes to crash Steam
 DO_NOT_CLOSE_URLS = ["Valve Steam Gamepad/default", "Valve%20Steam%20Gamepad"] # Steam Big Picture Mode tab
 

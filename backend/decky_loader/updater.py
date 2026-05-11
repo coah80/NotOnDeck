@@ -6,7 +6,7 @@ from os import getcwd, path, remove
 from typing import TYPE_CHECKING, List, TypedDict
 if TYPE_CHECKING:
     from .main import PluginManager
-from .localplatform.localplatform import chmod, service_restart, service_stop, ON_LINUX, ON_WINDOWS, get_keep_systemd_service, get_selinux
+from .localplatform.localplatform import chmod, service_restart, service_stop, ON_LINUX, ON_WINDOWS, ON_MACOS, get_keep_systemd_service, get_selinux
 import shutil
 from typing import List, TYPE_CHECKING, TypedDict
 import zipfile
@@ -34,6 +34,22 @@ class TestingVersion(TypedDict):
     name: str
     link: str
     head_sha: str
+
+
+def _get_local_binary_filename() -> str:
+    return "PluginLoader.exe" if ON_WINDOWS else "PluginLoader"
+
+
+def _get_release_asset_name() -> str:
+    if ON_MACOS:
+        return "PluginLoader-macos"
+    return _get_local_binary_filename()
+
+
+def _has_platform_release_asset(remote_version: RemoteVer) -> bool:
+    asset_name = _get_release_asset_name()
+    return any(asset["name"] == asset_name for asset in remote_version["assets"])
+
 
 class Updater:
     def __init__(self, context: PluginManager) -> None:
@@ -114,6 +130,7 @@ class Updater:
                 else:
                     logger.error("release type: NOT FOUND")
                     raise ValueError("no valid branch found")
+                remoteVersions = list(filter(_has_platform_release_asset, remoteVersions))
         self.allRemoteVers = remoteVersions
         logger.debug("determining release type to find, branch is %i" % selectedBranch)
         if selectedBranch == 0:
@@ -139,7 +156,7 @@ class Updater:
             await sleep(60 * 60 * 6) # 6 hours
 
     async def download_decky_binary(self, download_url: str, version: str, is_zip: bool = False, size_in_bytes: int | None = None):
-        download_filename = "PluginLoader" if ON_LINUX else "PluginLoader.exe"
+        download_filename = _get_local_binary_filename()
         download_temp_filename = download_filename + ".new"
 
         if size_in_bytes == None:
@@ -164,7 +181,7 @@ class Updater:
         with open(path.join(getcwd(), ".loader.version"), "w", encoding="utf-8") as out:
             out.write(version)
 
-        if ON_LINUX:
+        if not ON_WINDOWS:
             remove(path.join(getcwd(), download_filename))
             if (is_zip):
                 with zipfile.ZipFile(path.join(getcwd(), download_temp_filename), 'r') as file:
@@ -196,7 +213,7 @@ class Updater:
         version = self.remoteVer["tag_name"]
         download_url = None
         size_in_bytes = None
-        download_filename = "PluginLoader" if ON_LINUX else "PluginLoader.exe"
+        download_filename = _get_release_asset_name()
 
         for x in self.remoteVer["assets"]:
             if x["name"] == download_filename:
@@ -271,6 +288,9 @@ class Updater:
         #Iterate over the workflow_run to get the two builds if they exists
         for work in works['workflow_runs']:
             if ON_WINDOWS and work['name'] == 'Builder Win':
+                down_id=work['id']
+                break
+            elif ON_MACOS and work['name'] == 'Builder macOS':
                 down_id=work['id']
                 break
             elif ON_LINUX and work['name'] == 'Builder':

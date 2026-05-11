@@ -1,14 +1,21 @@
 import platform, os
 
-ON_WINDOWS = platform.system() == "Windows"
-ON_LINUX = not ON_WINDOWS
+SYSTEM = platform.system()
+ON_WINDOWS = SYSTEM == "Windows"
+ON_MACOS = SYSTEM == "Darwin"
+ON_LINUX = SYSTEM == "Linux"
 
 if ON_WINDOWS:
     from .localplatformwin import *
     from . import localplatformwin as localplatform
-else:
+elif ON_MACOS:
+    from .localplatformmac import *
+    from . import localplatformmac as localplatform
+elif ON_LINUX:
     from .localplatformlinux import *
     from . import localplatformlinux as localplatform
+else:
+    raise RuntimeError(f"Unsupported platform: {SYSTEM}")
 
 def get_privileged_path() -> str:
     '''Get path accessible by elevated user. Holds plugins, decky loader and decky loader configs'''
